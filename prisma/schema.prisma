@@ -1,0 +1,166 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+model Product {
+  id                 String           @id @default(uuid())
+  enterpriseTenantId String
+  name               String
+  description        String?
+  category           String
+  imageUrl           String?
+  bgColor            String?
+  textColor          String?
+  status             String           @default("ACTIVE")
+  variants           ProductVariant[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model ProductVariant {
+  id                 String             @id @default(uuid())
+  enterpriseTenantId String
+  productId          String
+  product            Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name               String
+  price              Decimal
+  sku                String             @unique
+  recipeIngredients  RecipeIngredient[]
+  orderItems         OrderItem[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model ModifierGroup {
+  id                 String     @id @default(uuid())
+  enterpriseTenantId String
+  name               String
+  minSelected        Int        @default(0)
+  maxSelected        Int        @default(1)
+  modifiers          Modifier[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model Modifier {
+  id                 String             @id @default(uuid())
+  enterpriseTenantId String
+  groupId            String
+  group              ModifierGroup      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name               String
+  price              Decimal            @default(0.00)
+  recipeIngredients  RecipeIngredient[]
+  itemModifiers      OrderItemModifier[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model InventoryStock {
+  id                 String             @id @default(uuid())
+  branchId           String
+  enterpriseTenantId String
+  ingredientName     String
+  quantity           Float
+  minThreshold       Float
+  recipeIngredients  RecipeIngredient[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([branchId, ingredientName])
+}
+
+model RecipeIngredient {
+  id                 String          @id @default(uuid())
+  enterpriseTenantId String
+  productVariantId   String?
+  productVariant     ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  modifierId         String?
+  modifier           Modifier?       @relation(fields: [modifierId], references: [id], onDelete: Cascade)
+  inventoryStockId   String
+  inventoryStock     InventoryStock  @relation(fields: [inventoryStockId], references: [id], onDelete: Cascade)
+  amountRequired     Float
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+}
+
+model Order {
+  id                 String        @id @default(uuid())
+  branchId           String
+  terminalId         String
+  enterpriseTenantId String
+  orderNumber        String        @unique
+  status             String
+  paymentStatus      String
+  paymentMethod      String
+  subtotal           Decimal
+  tax                Decimal
+  total              Decimal
+  employeeId         String
+  shiftId            String
+  shift              EmployeeShift @relation(fields: [shiftId], references: [id])
+  items              OrderItem[]
+  memberId           String?
+  tableNumber        String?
+  waiterInfo         String?
+  orderType          String?       // "DINE_IN", "TAKE_AWAY", "DELIVERY"
+  customerName       String?
+  customerPhone      String?
+  deliveryAddress    String?
+  deliveryPlatform   String?
+  isPrinted          Boolean       @default(false)
+  synchronizedAt     DateTime      @default(now())
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model OrderItem {
+  id               String              @id @default(uuid())
+  orderId          String
+  order            Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariantId String
+  productVariant   ProductVariant      @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+  unitPrice        Decimal
+  totalPrice       Decimal
+  modifiers        OrderItemModifier[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+model OrderItemModifier {
+  id          String    @id @default(uuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifierId  String
+  modifier    Modifier  @relation(fields: [modifierId], references: [id])
+  price       Decimal
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model EmployeeShift {
+  id                 String    @id @default(uuid())
+  branchId           String
+  terminalId         String
+  enterpriseTenantId String
+  employeePin        String
+  employeeName       String
+  openedAt           DateTime  @default(now())
+  closedAt           DateTime?
+  openingBalance     Decimal
+  closingBalance     Decimal?
+  actualCash         Decimal?
+  expectedCash       Decimal?
+  cardSales          Decimal   @default(0.00)
+  cashSales          Decimal   @default(0.00)
+  orders             Order[]
+  synchronizedAt     DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}

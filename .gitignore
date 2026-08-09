@@ -1,0 +1,9 @@
+node_modules/
+.env
+dist/
+*.db
+*.db-journal
+updates/*.exe
+*.exe
+*.tmp
+*.tmp*
